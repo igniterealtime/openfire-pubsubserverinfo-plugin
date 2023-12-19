@@ -7,6 +7,8 @@ Note: at the time of writing, the protocol as implemented by this plugin has not
 in any official manner by the XMPP Standards Foundation, and this document is not yet an XMPP Extension Protocol (XEP). This plugin should
 be considered experimental.
 
+This plugin is what could be used by applications such as the [XMPP Network Graph](https://xmppnetwork.goodbytes.im)
+
 ## Installation
 Copy pubsubserverinfo.jar into the plugins directory of your Openfire installation. The plugin will then be
 automatically deployed. To upgrade to a new version, copy the new pubsubserverinfo.jar file over the existing
