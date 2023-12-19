@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<plugin>
+    <class>org.igniterealtime.openfire.plugin.pubsubserverinfo.PubSubServerInfoPlugin</class>
+    <name>${project.name}</name>
+    <description>${project.description}</description>
+    <author>Guus der Kinderen</author>
+    <version>${project.version}</version>
+    <date>2023-12-19</date>
+    <minServerVersion>4.8.0</minServerVersion>
+</plugin>
