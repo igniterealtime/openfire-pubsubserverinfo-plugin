@@ -6,6 +6,6 @@
     <description>${project.description}</description>
     <author>Guus der Kinderen</author>
     <version>${project.version}</version>
-    <date>2023-12-20</date>
+    <date>2023-12-22</date>
     <minServerVersion>4.8.0</minServerVersion>
 </plugin>
