@@ -22,6 +22,8 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.container.PluginManager;
+import org.jivesoftware.openfire.event.ServerSessionEventDispatcher;
+import org.jivesoftware.openfire.interceptor.InterceptorManager;
 import org.jivesoftware.openfire.pubsub.LeafNode;
 import org.jivesoftware.openfire.pubsub.PubSubEngine;
 import org.jivesoftware.openfire.user.UserManager;
@@ -34,9 +36,7 @@ import org.xmpp.packet.JID;
 import java.io.File;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -64,6 +64,8 @@ public class PubSubServerInfoPlugin implements Plugin
         .setDynamic(false)
         .build();
 
+    private OptInDetector optInDetector;
+
     private final TimerTask task = new TimerTask()
     {
         @Override
@@ -76,13 +78,25 @@ public class PubSubServerInfoPlugin implements Plugin
     @Override
     public void initializePlugin( PluginManager manager, File pluginDirectory )
     {
-        TaskEngine.getInstance().schedule(task, 0, REFRESH_INTERVAL.getValue().toMillis());
+        optInDetector = new OptInDetector();
+        ServerSessionEventDispatcher.addListener(optInDetector);
+        InterceptorManager.getInstance().addInterceptor(optInDetector);
+        XMPPServer.getInstance().getIQDiscoInfoHandler().addServerFeature("urn:xmpp:serverinfo:0");
+        optInDetector.init();
+
+        // Delay the first publication of data with a few seconds, so that remote domains have a chance to answer the
+        // disco#info queries that are sent by the optIn detector.
+        final Duration delay = Duration.ofSeconds(10);
+        TaskEngine.getInstance().schedule(task, delay, REFRESH_INTERVAL.getValue());
     }
 
     @Override
     public void destroyPlugin()
     {
         TaskEngine.getInstance().cancelScheduledTask(task);
+        XMPPServer.getInstance().getIQDiscoInfoHandler().removeServerFeature("urn:xmpp:serverinfo:0");
+        InterceptorManager.getInstance().removeInterceptor(optInDetector);
+        ServerSessionEventDispatcher.removeListener(optInDetector);
 
         // Clear out items from the node, but do not delete the node. In case of a plugin reload, it is preferred to retain the node config and subscribers.
         clearPubSubNode();
@@ -119,34 +133,45 @@ public class PubSubServerInfoPlugin implements Plugin
         }
         Log.trace("Looking up servers...");
 
-        final Collection<String> incomingServers = XMPPServer.getInstance().getSessionManager().getIncomingServers();
-        final Collection<String> outgoingServers = XMPPServer.getInstance().getSessionManager().getOutgoingServers();
+        final Set<String> incomingServers = new HashSet<>(XMPPServer.getInstance().getSessionManager().getIncomingServers());
+        final Set<String> outgoingServers = new HashSet<>(XMPPServer.getInstance().getSessionManager().getOutgoingServers());
 
         Log.trace("Incoming/outgoing servers: {}/{}", incomingServers.size(), outgoingServers.size());
         final Element item = DocumentHelper.createElement(QName.get("item", "http://jabber.org/protocol/pubsub"));
         final Element serverinfo = item.addElement(QName.get("serverinfo", "urn:xmpp:serverinfo:0"));
-        serverinfo.addElement("domain").setText(XMPPServer.getInstance().getServerInfo().getXMPPDomain());
-        final Element federation = serverinfo.addElement("federation");
-        for (String incomingServer : incomingServers) {
+        final Element domain = serverinfo.addElement("domain");
+        domain.addAttribute("name", XMPPServer.getInstance().getServerInfo().getXMPPDomain());
+        final Element federation = domain.addElement("federation");
+
+        Log.trace("Processing outgoing servers...");
+        for (final String outgoingServer : outgoingServers) {
             final String type;
-            if (outgoingServers.remove(incomingServer)) {
+            if (incomingServers.remove(outgoingServer)) {
                 type = "both";
             } else {
                 type = "incoming";
             }
-            final Element connection = federation.addElement("connection");
-            connection.addAttribute("type", type);
-            connection.addElement("domain").setText(incomingServer);
+
+            addRemoteDomain(federation, outgoingServer, type);
         }
 
         // Duplicates are removed above.
-        for (String outgoingServer : outgoingServers) {
-            final Element connection = federation.addElement("connection");
-            connection.addAttribute("type", "outgoing");
-            connection.addElement("domain").setText(outgoingServer);
+        Log.trace("Processing incoming servers...");
+        for (final String incomingServer : incomingServers) {
+            addRemoteDomain(federation, incomingServer, "incoming");
         }
 
         Log.trace("Publishing item: {}", item.asXML());
         node.publishItems(publisher, Collections.singletonList(item));
+    }
+
+    void addRemoteDomain(final Element federation, String domainName, String type) {
+        Log.trace("add remote domain: {} type: {}", domainName, type);
+        final Element remoteDomain = federation.addElement("remote-domain");
+        final Element connection = remoteDomain.addElement("connection");
+        if (optInDetector.optsIn(domainName)) {
+            remoteDomain.addAttribute("name", domainName);
+            connection.addAttribute("type", type);
+        }
     }
 }
