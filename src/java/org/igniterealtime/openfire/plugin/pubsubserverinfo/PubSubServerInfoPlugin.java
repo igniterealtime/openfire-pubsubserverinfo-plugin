@@ -66,6 +66,8 @@ public class PubSubServerInfoPlugin implements Plugin
 
     private OptInDetector optInDetector;
 
+    private XmppProviderDAO xmppProviderDAO;
+
     private final TimerTask task = new TimerTask()
     {
         @Override
@@ -78,6 +80,7 @@ public class PubSubServerInfoPlugin implements Plugin
     @Override
     public void initializePlugin( PluginManager manager, File pluginDirectory )
     {
+        xmppProviderDAO = new XmppProviderDAO();
         optInDetector = new OptInDetector();
         ServerSessionEventDispatcher.addListener(optInDetector);
         InterceptorManager.getInstance().addInterceptor(optInDetector);
@@ -100,6 +103,8 @@ public class PubSubServerInfoPlugin implements Plugin
 
         // Clear out items from the node, but do not delete the node. In case of a plugin reload, it is preferred to retain the node config and subscribers.
         clearPubSubNode();
+
+        xmppProviderDAO = null;
     }
 
     public void clearPubSubNode() {
@@ -169,7 +174,7 @@ public class PubSubServerInfoPlugin implements Plugin
         Log.trace("add remote domain: {} type: {}", domainName, type);
         final Element remoteDomain = federation.addElement("remote-domain");
         final Element connection = remoteDomain.addElement("connection");
-        if (optInDetector.optsIn(domainName)) {
+        if (xmppProviderDAO.isXmppProvider(new JID(null, domainName, null)) || optInDetector.optsIn(domainName)) {
             remoteDomain.addAttribute("name", domainName);
             connection.addAttribute("type", type);
         }
