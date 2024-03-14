@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  * An Openfire plugin that periodically collects server information and publishes it on a pub-sub node.
  *
  * @author Guus der Kinderen
- * @see <a href="https://xmpp.org/extensions/inbox/xep-pubsub-server-info.html">XEP-xxxx: PubSub Server Info</a>
+ * @see <a href="https://xmpp.org/extensions/xep-0485.html">XEP-0485: PubSub Server Info</a>
  */
 public class PubSubServerInfoPlugin implements Plugin
 {
