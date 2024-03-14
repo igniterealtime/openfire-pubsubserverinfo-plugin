@@ -1,11 +1,7 @@
 # Openfire PubSub Server Info Plugin
 
 The PubSub Server Info plugin provides a way for Openfire to report statistics about itself in a well-known pub-sub
-node: 'serverinfo'. The data format is defined in [XEP-xxxx: PubSub Server Info](https://xmpp.org/extensions/inbox/xep-pubsub-server-info.html).
-
-Note: at the time of writing, the protocol as implemented by this plugin has not yet been accepted for consideration or approved 
-in any official manner by the XMPP Standards Foundation, and this document is not yet an XMPP Extension Protocol (XEP). This plugin should
-be considered experimental.
+node: 'serverinfo'. The data format is defined in [XEP-0485: PubSub Server Info](https://xmpp.org/extensions/xep-0485.html).
 
 This plugin is what could be used by applications such as the [XMPP Network Graph](https://xmppnetwork.goodbytes.im)
 
