@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class XmppProviderDAO
@@ -23,6 +24,7 @@ public class XmppProviderDAO
 
     private Instant lastRefresh = Instant.EPOCH;
     private static final Duration TTL = Duration.ofHours(12);
+    private static final Duration TTL_EMPTY = Duration.ofMinutes(30);
     private Set<JID> data = new HashSet<>();
 
     public static Set<JID> requestServiceProviders() {
@@ -35,7 +37,7 @@ public class XmppProviderDAO
             return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
                 .thenApply(XmppProviderDAO::parse)
-                .join();
+                .get(15, TimeUnit.SECONDS);
         } catch (Exception e) {
             Log.warn("Unable to obtain collection of XMPP service providers.", e);
             return Collections.emptySet();
@@ -49,8 +51,10 @@ public class XmppProviderDAO
             .filter(jid -> jid.getNode() == null && jid.getResource() == null)
             .collect(Collectors.toSet());
     }
+
     public synchronized Set<JID> getXmppProviders() {
-        if (data.isEmpty() || Duration.between(lastRefresh, Instant.now()).compareTo(TTL) > 0) {
+        if ( (data.isEmpty() && Duration.between(lastRefresh, Instant.now()).compareTo(TTL_EMPTY) > 0)
+            || Duration.between(lastRefresh, Instant.now()).compareTo(TTL) > 0) {
             data = requestServiceProviders();
             lastRefresh = Instant.now();
         }
