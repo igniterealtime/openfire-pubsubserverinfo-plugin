@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2024-2026 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,6 +68,8 @@ public class PubSubServerInfoPlugin implements Plugin
 
     private XmppProviderDAO xmppProviderDAO;
 
+    private ServerInfoProvider serverInfoProvider;
+
     private final TimerTask task = new TimerTask()
     {
         @Override
@@ -82,9 +84,11 @@ public class PubSubServerInfoPlugin implements Plugin
     {
         xmppProviderDAO = new XmppProviderDAO();
         optInDetector = new OptInDetector();
+        serverInfoProvider = new ServerInfoProvider();
         ServerSessionEventDispatcher.addListener(optInDetector);
         InterceptorManager.getInstance().addInterceptor(optInDetector);
         XMPPServer.getInstance().getIQDiscoInfoHandler().addServerFeature("urn:xmpp:serverinfo:0");
+        XMPPServer.getInstance().getIQDiscoInfoHandler().addExtendedDiscoInfoProvider(serverInfoProvider);
         optInDetector.init();
 
         // Delay the first publication of data with a few seconds, so that remote domains have a chance to answer the
@@ -98,6 +102,7 @@ public class PubSubServerInfoPlugin implements Plugin
     {
         TaskEngine.getInstance().cancelScheduledTask(task);
         XMPPServer.getInstance().getIQDiscoInfoHandler().removeServerFeature("urn:xmpp:serverinfo:0");
+        XMPPServer.getInstance().getIQDiscoInfoHandler().removeExtendedDiscoInfoProvider(serverInfoProvider);
         InterceptorManager.getInstance().removeInterceptor(optInDetector);
         ServerSessionEventDispatcher.removeListener(optInDetector);
 
@@ -105,6 +110,7 @@ public class PubSubServerInfoPlugin implements Plugin
         clearPubSubNode();
 
         xmppProviderDAO = null;
+        serverInfoProvider = null;
     }
 
     public void clearPubSubNode() {
